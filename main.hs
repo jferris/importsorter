@@ -38,4 +38,4 @@ sortImports x = do
 
 main = do
   contents <- readFile "example.m"
-  writeFile "example2.m" $ intercalate "\n" $ sortImports contents
+  writeFile "example2.m" $ unlines $ sortImports contents
