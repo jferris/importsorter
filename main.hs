@@ -3,11 +3,14 @@ import Data.List
 import System.IO
 import Text.Regex.PCRE
 
-bracketRegex :: String
-bracketRegex = "^.+<.+>$"
+matchesHeader :: String -> Bool
+matchesHeader a = a =~ "^//.*$|^$"
+
+matchesImport :: String -> Bool
+matchesImport a = a =~ "^(#|@)(import|include).*$|^$"
 
 matchesBracket :: String -> Bool
-matchesBracket a = a =~ bracketRegex
+matchesBracket a = a =~ "^.+<.+>$"
 
 importSorter :: String -> String -> Ordering
 importSorter ('@':_) ('#':_) = LT
@@ -25,17 +28,11 @@ importCompare a b =
   where matchA = matchesBracket a
         matchB = matchesBracket b
 
-matchesJunk :: String -> Bool
-matchesJunk a = a =~ "^//.*$|^$"
-
-matchesGood :: String -> Bool
-matchesGood a = a =~ "^(#|@)(import|include).*$|^$"
-
 sortImports :: String -> [String]
 sortImports x = do
   let input = lines x
-  let (before, rest) = span matchesJunk input
-  let (imports, after) = span matchesGood rest
+  let (before, rest) = span matchesHeader input
+  let (imports, after) = span matchesImport rest
   let sorted = sortBy importSorter  $ filter (not . null) imports
   before ++ sorted ++ []:after
 
