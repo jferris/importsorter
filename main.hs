@@ -33,7 +33,7 @@ sortImports x = do
   let input = lines x
   let (before, rest) = span matchesHeader input
   let (imports, after) = span matchesImport rest
-  let sorted = sortBy importSorter  $ filter (not . null) imports
+  let sorted = sortBy importSorter $ filter (not . null) imports
   before ++ sorted ++ []:after
 
 main = do
