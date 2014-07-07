@@ -37,9 +37,5 @@ sortImports x = do
   before ++ sorted ++ []:after
 
 main = do
-  handle <- openFile "example.m" ReadMode
-  contents <- hGetContents handle
-  evaluate (length contents)
-  handle <- openFile "example2.m" WriteMode
-  mapM_ (hPutStrLn handle) $ sortImports contents
-  hClose handle
+  contents <- readFile "example.m"
+  writeFile "example2.m" $ intercalate "\n" $ sortImports contents
