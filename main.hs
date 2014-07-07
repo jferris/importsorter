@@ -1,7 +1,7 @@
-import System.IO
-import Data.List
-import Text.Regex.PCRE
 import Control.Exception (evaluate)
+import Data.List
+import System.IO
+import Text.Regex.PCRE
 
 bracketRegex :: String
 bracketRegex = "^.+<.+>$"
@@ -41,7 +41,6 @@ sortImports x = do
   before ++ sorted ++ []:after
 
 main = do
---openFile "example.m" ReadMode >>= hGetContents >>= getImports-- >>= doSort
   handle <- openFile "example.m" ReadMode
   contents <- hGetContents handle
   evaluate (length contents)
