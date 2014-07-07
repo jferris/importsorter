@@ -19,10 +19,9 @@ importSorter _ [] = LT
 importCompare :: String -> String -> Ordering
 importCompare a b =
   case (matchA, matchB) of
-    (True, True) -> compare a b
     (True, False) -> LT
     (False, True) -> GT
-    (False, False) -> compare a b
+    (_, _) -> compare a b
   where matchA = matchesBracket a
         matchB = matchesBracket b
 
