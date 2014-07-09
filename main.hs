@@ -1,5 +1,7 @@
+import Control.Applicative (Applicative, (<$>), (<*>), (<*))
 import Control.Monad ((<=<))
 import Data.List (sort)
+import Data.Monoid (Monoid, mappend)
 import Text.Parsec
 import Text.Parsec.String
 
@@ -16,43 +18,38 @@ main = do
         Right file -> writeFile "example2.m" $ sortImports file
 
 fileParser :: Parser File
-fileParser = do
-    comments <- many commentParser
-    imports <- many importParser
-    body <- bodyParser
-    return $ File (concat comments) imports body
+fileParser = File <$> headerParser <*> many importParser <*> bodyParser
+
+headerParser :: Parser Header
+headerParser = concat <$> many commentParser
 
 commentParser :: Parser Header
-commentParser = concatParser [string "//", tillEol, many1 newline]
+commentParser = string "//" <++> tillEol <++> many1 newline
 
 importParser :: Parser Import
-importParser = do
-    result <-
+importParser = parser <* many1 newline
+  where
+    parser =
         try packageImportParser <|>
         try systemImportParser <|>
         try localImportParser
-    many1 newline
-    return result
 
 packageImportParser :: Parser Import
-packageImportParser =
-    return . Import Package =<< concatParser [string "@", tillEol]
+packageImportParser = Import Package <$> string "@" <++> tillEol
 
 systemImportParser :: Parser Import
-systemImportParser = return . Import System =<< hashImportParser "<"
+systemImportParser =  Import System <$> hashImportParser "<"
 
 localImportParser :: Parser Import
-localImportParser = return . Import Local =<< hashImportParser "\""
+localImportParser = Import Local <$> hashImportParser "\""
 
 hashImportParser :: String -> Parser String
 hashImportParser bracket =
-    concatParser
-        [ string "#"
-        , string "import" <|> string "include"
-        , many1 $ char ' '
-        , string bracket
-        , tillEol
-        ]
+    string "#" <++>
+    (string "import" <|> string "include") <++>
+    (many1 $ char ' ') <++>
+    string bracket <++>
+    tillEol
 
 bodyParser :: Parser Body
 bodyParser = manyTill anyChar eof
@@ -60,8 +57,8 @@ bodyParser = manyTill anyChar eof
 tillEol :: Parser String
 tillEol = many $ noneOf "\n"
 
-concatParser :: [Parser String] -> Parser String
-concatParser = return . concat <=< sequence
+(<++>) :: (Applicative f, Monoid m) => f m -> f m -> f m
+a <++> b = mappend <$> a <*> b
 
 sortImports :: File -> String
 sortImports (File header imports body) =
