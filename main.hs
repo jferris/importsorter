@@ -1,37 +1,72 @@
-import Control.Exception (evaluate)
-import Data.List
-import System.IO
-import Text.Regex.PCRE
+import Control.Monad ((<=<))
+import Data.List (sort)
+import Text.Parsec
+import Text.Parsec.String
 
 data ImportType = Package | System | Local deriving (Eq, Ord)
 data Import = Import ImportType String deriving (Eq, Ord)
+type Header = String
+type Body = String
+data File = File Header [Import] Body
 
-matchesHeader :: String -> Bool
-matchesHeader a = a =~ "^//.*$|^$"
+main = do
+    result <- parseFromFile fileParser "example.m"
+    case result of
+        Left error -> print error
+        Right file -> writeFile "example2.m" $ sortImports file
 
-matchesImport :: String -> Bool
-matchesImport a = a =~ "^(#|@)(import|include).*$|^$"
+fileParser :: Parser File
+fileParser = do
+    comments <- many commentParser
+    imports <- many importParser
+    body <- bodyParser
+    return $ File (concat comments) imports body
 
-fromString :: String -> Import
-fromString string
-    | head string == '@' = Import Package string
-    | matchesBracket string = Import System string
-    | otherwise = Import Local string
+commentParser :: Parser Header
+commentParser = concatParser [string "//", tillEol, many1 newline]
+
+importParser :: Parser Import
+importParser = do
+    result <-
+        try packageImportParser <|>
+        try systemImportParser <|>
+        try localImportParser
+    many1 newline
+    return result
+
+packageImportParser :: Parser Import
+packageImportParser =
+    return . Import Package =<< concatParser [string "@", tillEol]
+
+systemImportParser :: Parser Import
+systemImportParser = return . Import System =<< hashImportParser "<"
+
+localImportParser :: Parser Import
+localImportParser = return . Import Local =<< hashImportParser "\""
+
+hashImportParser :: String -> Parser String
+hashImportParser bracket =
+    concatParser
+        [ string "#"
+        , string "import" <|> string "include"
+        , many1 $ char ' '
+        , string bracket
+        , tillEol
+        ]
+
+bodyParser :: Parser Body
+bodyParser = manyTill anyChar eof
+
+tillEol :: Parser String
+tillEol = many $ noneOf "\n"
+
+concatParser :: [Parser String] -> Parser String
+concatParser = return . concat <=< sequence
+
+sortImports :: File -> String
+sortImports (File header imports body) =
+    concat $ [header, sortedImports, "\n",  body]
+  where sortedImports = unlines $ map importToString $ sort imports
 
 importToString :: Import -> String
 importToString (Import _ string) = string
-
-matchesBracket :: String -> Bool
-matchesBracket a = a =~ "^.+<.+>$"
-
-sortImports :: String -> [String]
-sortImports x = do
-  let input = lines x
-  let (before, rest) = span matchesHeader input
-  let (imports, after) = span matchesImport rest
-  let sorted = map importToString $ sort $ map fromString $ filter (not . null) imports
-  before ++ sorted ++ []:after
-
-main = do
-  contents <- readFile "example.m"
-  writeFile "example2.m" $ unlines $ sortImports contents
